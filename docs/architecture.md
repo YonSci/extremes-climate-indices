@@ -261,10 +261,15 @@ docs/
   admin-boundaries being accepted but ignored — are now fixed (see
   [operations.md §3.15-3.17](operations.md#315-cddcwd-dry-spell-and-spi-never-exported-climatologydeparture-geotiffs-phase-6-follow-up)).
   Dockerfiles + `docker-compose.yml` remain **not build/run-verified** (no Docker CLI in this
-  development environment — see [deployment.md](deployment.md)'s verification-status note); the
-  GitHub Actions CI workflow has been dry-run verified step-by-step against this exact repo state
-  (still not run on a real Actions runner, since this directory isn't a git repository) and one
-  real gap was found and fixed there too — it never ran the frontend's own test suite (§3.16).
+  development environment — see [deployment.md](deployment.md)'s verification-status note). The
+  GitHub Actions CI workflow **has** now been run for real, on a real Actions runner, after this
+  project was pushed to a real GitHub remote — its first run failed both jobs on causes a local
+  dry-run against this dev machine's own data couldn't see (real data isn't committed, so a clean
+  checkout doesn't have it; two test files' skip conditions and one test-runner glob collision
+  didn't account for that), both fixed and confirmed by a second, fully green run
+  ([operations.md §3.19](operations.md#319-the-first-real-github-actions-run-failed-both-jobs--real-bugs-the-local-dry-run-couldnt-see)).
+  Real-browser (Playwright) verification of the frontend also succeeded this session — see
+  [operations.md §3.18](operations.md#318-real-browser-playwright-verification-of-the-frontend).
   Building the real georeferenced overlay pipeline surfaced a genuine, previously-invisible bug:
   every GeoTIFF this project had ever exported was upside-down (see
   [operations.md §3.11](operations.md#311-exported-geotiffs-were-upside-down-phase-6-found-by-actually-rendering-one-as-a-map-overlay)).

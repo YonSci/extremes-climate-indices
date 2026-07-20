@@ -7,22 +7,19 @@ single developer's local `python -m uvicorn` / `npm run dev` session.
 
 **Verification status, stated plainly**: the Dockerfiles and
 `docker-compose.yml` below were written to standard patterns but **not
-built or run** in the environment this project was developed in — Docker's
-CLI wasn't available there. Treat the first real `docker compose up --build`
-as a verification step, not a formality.
+built or run** — this environment still has no Docker CLI. Treat the first
+real `docker compose up --build` as a verification step, not a formality.
 
-The CI workflow (`.github/workflows/ci.yml`) hasn't been exercised on a real
-GitHub Actions runner either, since this working directory isn't a git
-repository — but every step it runs has been dry-run manually against this
-exact repo state: Python 3.11+ (this dev box has 3.13) with `pip install -e .[dev]`
-and `python -m pytest tests/ -v` (153 passed), and Node 22 with `npm ci`,
-`npm test` (9 passed), and `npm run build` (clean production build). That dry
-run caught one real gap — the workflow never ran the frontend's test suite,
-only its build — now fixed (see
-[operations.md §3.16](operations.md#316-ci-never-actually-ran-the-frontends-test-suite)).
-The one step that genuinely can't be checked outside Ubuntu is the
-`apt-get install gdal-bin libgdal-dev libgeos-dev libproj-dev` step; verify
-that on the first real push.
+The CI workflow (`.github/workflows/ci.yml`) **has** now been exercised on a
+real GitHub Actions runner (pushed to
+[github.com/YonSci/extremes-climate-indices](https://github.com/YonSci/extremes-climate-indices)).
+The first real run failed both jobs — a local dry-run against this dev
+machine's own copy of the real data couldn't have caught either cause, since
+both were specifically about the *absence* of that data on a clean checkout.
+Both were found and fixed in the same session; the second run passed both
+jobs end to end, including the one step that genuinely couldn't be checked
+outside Ubuntu (`apt-get install gdal-bin libgdal-dev libgeos-dev
+libproj-dev`). Full story: [operations.md §3.19](operations.md#319-the-first-real-github-actions-run-failed-both-jobs--real-bugs-the-local-dry-run-couldnt-see).
 
 ---
 
