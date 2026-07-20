@@ -17,8 +17,19 @@ from workflows.common import load_and_prepare, resolve_window
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "configs" / "regions" / "ethiopia.yaml"
+# The config YAML is committed to git; the real NetCDF data it points at is not
+# (see README's "Data expected on disk" — nothing under data/ is committed). Skip on
+# either being absent, not just the config, or this crashes on a real CI checkout
+# instead of skipping (caught by the first real GitHub Actions run against this repo).
+REAL_DATA_PRESENT = (
+    (REPO_ROOT / "data" / "bias-corrected" / "corrected_2026.nc").exists()
+    and (REPO_ROOT / "data" / "chrips_historical" / "et_chirps_pr_r25_1993_2025.nc").exists()
+    and (REPO_ROOT / "data" / "boundaries" / "eth_shapefile" / "eth_admin0.shp").exists()
+)
 
-pytestmark = pytest.mark.skipif(not CONFIG_PATH.exists(), reason="Ethiopia config not present")
+pytestmark = pytest.mark.skipif(
+    not (CONFIG_PATH.exists() and REAL_DATA_PRESENT), reason="Ethiopia config or real on-disk data not present"
+)
 
 
 @pytest.fixture(scope="module")

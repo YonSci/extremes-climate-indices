@@ -16,8 +16,16 @@ from workflows.scheduler import check_and_regenerate, parse_args
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = REPO_ROOT / "configs" / "regions" / "ethiopia.yaml"
+# The config YAML is committed to git; the real NetCDF data it points at is not (see
+# README's "Data expected on disk"). `run_all` is mocked in every test below, but
+# `spec.path.stat()` (mtime-based change detection) still needs the real file to exist —
+# skip on either being absent, not just the config, or this crashes on a real CI
+# checkout instead of skipping (caught by the first real GitHub Actions run against this repo).
+REAL_DATA_PRESENT = (REPO_ROOT / "data" / "bias-corrected" / "corrected_2026.nc").exists()
 
-pytestmark = pytest.mark.skipif(not CONFIG_PATH.exists(), reason="Ethiopia config not present")
+pytestmark = pytest.mark.skipif(
+    not (CONFIG_PATH.exists() and REAL_DATA_PRESENT), reason="Ethiopia config or real on-disk data not present"
+)
 
 
 @pytest.fixture

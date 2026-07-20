@@ -668,6 +668,52 @@ start the real backend (`PYTHONPATH=src python -m uvicorn api.main:app --port 81
 and the real frontend (`npm run build && npm run preview -- --port 4173`) in
 two terminals, then `npm run test:e2e` in a third.
 
+### 3.19 The first real GitHub Actions run failed both jobs — real bugs the local dry-run couldn't see
+
+**Symptom**: after this repo was actually pushed to GitHub for the first
+time, run #1 of `ci.yml` failed both `backend-tests` and `frontend-build`, at
+the `Run test suite` step in each — despite §3.16's local dry-run of the same
+commands passing cleanly. The difference: the dry-run ran on this development
+machine, which has the real Ethiopia NetCDF/shapefile data on disk; a fresh
+GitHub Actions checkout does not (see README's "Data expected on disk" — none
+of it is committed, by design). This is exactly the class of gap
+`docs/deployment.md` had flagged in advance ("treat the first real CI run as
+a verification step, not a formality") — it found two genuine, independent
+bugs:
+
+1. **Four test files skipped on the wrong condition.**
+   `tests/integration/test_api.py`, `test_common_workflow.py`,
+   `test_phase1_pipeline.py`, and `tests/unit/test_scheduler.py` all guarded
+   themselves with `pytest.mark.skipif(not CONFIG_PATH.exists(), ...)` —
+   but `configs/regions/ethiopia.yaml` **is** committed (it's just YAML, not
+   data), so that condition is `True` in CI and the tests don't skip; they
+   instead crash trying to open real NetCDF files / a real shapefile that
+   aren't there. (Two other files, `test_boundary_clip.py` and
+   `test_known_answers.py`, already got this right — they check for the
+   actual data file's existence.) **Fix**: all four now also check that the
+   real data files exist (`data/bias-corrected/corrected_2026.nc`,
+   `data/chrips_historical/et_chirps_pr_r25_1993_2025.nc`,
+   `data/boundaries/eth_shapefile/eth_admin0.shp`, as applicable) before
+   running. Verified by temporarily renaming `data/` aside on this dev
+   machine and re-running the full suite: 119 passed, 34 skipped, zero
+   errors — the same shape a clean CI checkout should now produce.
+2. **Vitest was picking up the new Playwright e2e spec.** `frontend/e2e/app.spec.ts`
+   (added in §3.18, same session) matches Vitest's default test-file glob
+   (`*.spec.ts`, not just `*.test.ts`), so `npm test` tried to execute it
+   under Vitest and crashed immediately — Playwright's `test()` isn't
+   callable outside the Playwright runner ("Playwright Test did not expect
+   test() to be called here"). This hadn't been caught locally because
+   `npm test` was last run *before* `e2e/app.spec.ts` existed; only
+   `npx playwright test` (the correct runner) had been run against it since.
+   **Fix**: `frontend/vite.config.ts`'s `test.exclude` now excludes `e2e/**`.
+   Reproduced and confirmed fixed locally before re-pushing.
+
+**The general lesson**, consistent with every other entry in this log: a
+local dry-run of CI's *commands* only proves the commands are spelled
+correctly — it can't prove what happens in an environment that genuinely
+differs from the one it ran in. The first real run on the real target
+environment is not optional verification.
+
 ---
 
 ## 4. Other significant decisions made this session
