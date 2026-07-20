@@ -49,7 +49,7 @@ cd frontend && npm install
 # Backend (153 tests)
 python -m pytest tests/ -v
 
-# Frontend (15 tests)
+# Frontend (17 tests)
 cd frontend && npm test
 ```
 

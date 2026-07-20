@@ -141,12 +141,23 @@ export function MapPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Add/replace the overlay image whenever the product changes.
+  // Add/replace the overlay image whenever the product changes — and just as
+  // importantly, remove the *previous* one when `overlay` goes back to null
+  // (a new "Generate maps" run, or a failed fetch after one). Without the
+  // unconditional removal below, the old MapLibre layer/source stay glued to
+  // the canvas — imperative WebGL state React's re-render doesn't touch — so
+  // the map silently keeps showing stale data from the last successful run
+  // while the (correctly cleared) legend disappears, looking like the whole
+  // panel "isn't updating" when only the legend actually did.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !overlay) return;
+    if (!map) return;
 
     const applyOverlay = () => {
+      if (map.getLayer(OVERLAY_LAYER_ID)) map.removeLayer(OVERLAY_LAYER_ID);
+      if (map.getSource(OVERLAY_SOURCE_ID)) map.removeSource(OVERLAY_SOURCE_ID);
+      if (!overlay) return;
+
       const [minlon, minlat, maxlon, maxlat] = overlay.bounds;
       const coordinates: [[number, number], [number, number], [number, number], [number, number]] = [
         [minlon, maxlat],
@@ -155,9 +166,6 @@ export function MapPanel({
         [minlon, minlat],
       ];
       const dataUrl = `data:image/png;base64,${overlay.png_base64}`;
-
-      if (map.getLayer(OVERLAY_LAYER_ID)) map.removeLayer(OVERLAY_LAYER_ID);
-      if (map.getSource(OVERLAY_SOURCE_ID)) map.removeSource(OVERLAY_SOURCE_ID);
 
       map.addSource(OVERLAY_SOURCE_ID, { type: "image", url: dataUrl, coordinates });
       map.addLayer({ id: OVERLAY_LAYER_ID, type: "raster", source: OVERLAY_SOURCE_ID, paint: { "raster-opacity": 0.85 } });

@@ -106,8 +106,11 @@ export default function App() {
       if (!productId) return null;
       return api.getOverlay(productId, c.cmap, c.diverging);
     };
-    Promise.all([loadPanel("left_geotiff", cfg.left), loadPanel("middle_geotiff", cfg.middle), loadPanel("right_geotiff", cfg.right)]).then(
-      ([left, middle, right]) => setOverlays({ left, middle, right })
+    Promise.allSettled([loadPanel("left_geotiff", cfg.left), loadPanel("middle_geotiff", cfg.middle), loadPanel("right_geotiff", cfg.right)]).then(
+      ([left, middle, right]) => {
+        const settled = (r: PromiseSettledResult<OverlayResponse | null>) => (r.status === "fulfilled" ? r.value : null);
+        setOverlays({ left: settled(left), middle: settled(middle), right: settled(right) });
+      }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [display.colorblindSafe]);
@@ -138,16 +141,26 @@ export default function App() {
         if (!productId) return null;
         return api.getOverlay(productId, c.cmap, c.diverging);
       };
-      const [left, middle, right] = await Promise.all([
+      // allSettled, not all: one panel's fetch failing (a transient network error,
+      // say) shouldn't blank out the other two panels that loaded fine.
+      const [leftResult, middleResult, rightResult] = await Promise.allSettled([
         loadPanel("left_geotiff", cfg.left),
         loadPanel("middle_geotiff", cfg.middle),
         loadPanel("right_geotiff", cfg.right),
       ]);
+      const settled = (r: PromiseSettledResult<OverlayResponse | null>) => (r.status === "fulfilled" ? r.value : null);
+      const left = settled(leftResult);
+      const middle = settled(middleResult);
+      const right = settled(rightResult);
       setOverlays({ left, middle, right });
-      if (!left && !middle && !right) {
+
+      const failed = [leftResult, middleResult, rightResult].filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (!left && !middle && !right && failed.length === 0) {
         setStatusMessage(
           `Done, but this index doesn't export per-panel GeoTIFFs yet — see the static map: /maps/${outputs.map}`
         );
+      } else if (failed.length > 0) {
+        setStatusMessage(`Done, but ${failed.length} of 3 panels failed to load: ${String(failed[0].reason)}`);
       }
     } catch (e) {
       setStatusMessage(`Error: ${String(e)}`);

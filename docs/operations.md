@@ -784,6 +784,35 @@ tests (§3.18) pass against the redesigned app, including three new
 tweak-specific e2e tests (map height, graticule, colorblind re-colorize) that
 didn't exist before this redesign.
 
+### 3.21 Switching index/period and regenerating left the map showing stale data
+
+**Symptom** (user-reported, with a screenshot): selecting a different index
+(e.g. `rainfall_total` → `spi`) and clicking "Generate maps" again left the
+map panels visually showing the *previous* run's imagery — legends correctly
+disappeared (React-controlled), but the MapLibre raster layer stayed put.
+
+**Cause**: `MapPanel.tsx`'s overlay `useEffect` was `if (!map || !overlay) return;`
+— when `overlay` goes back to `null` (cleared at the start of every new
+"Generate maps" run, or left `null` after a failed fetch), the effect did
+nothing at all, so the *previous* run's MapLibre layer/source were never
+removed. This is imperative WebGL state outside React's reconciliation, so
+nothing else would clean it up. The boundary and graticule layers already had
+the correct pattern (unconditional removal, then conditionally re-add); the
+overlay layer alone was missing it.
+
+**Fix**: removal is now unconditional (mirrors the boundary/graticule
+effects); adding a new layer is the conditional part. A regression test
+(`MapPanel.test.tsx`) asserts `removeLayer`/`removeSource` fire when `overlay`
+transitions to `null` — confirmed to fail against the pre-fix code (reverted
+locally to check) and pass against the fix. Separately, `App.tsx`'s overlay
+loading switched from `Promise.all` to `Promise.allSettled`: previously, one
+panel's `/overlay` fetch failing discarded the other two panels' results too
+(worsening exactly this symptom under partial failure); now each panel's
+result is independent, and a partial-failure status message reports how many
+of the 3 panels failed. Verified live: generate with `rainfall_total`, switch
+to `seasonal`/`June`/`spi`, regenerate — the maps now show real, different
+SPI data (confirmed via screenshot) instead of the stale rainfall totals.
+
 ---
 
 ## 4. Other significant decisions made this session
@@ -954,9 +983,10 @@ a single random draw (bootstrap CI coverage, false-positive rate) are written
 as multi-trial rate checks rather than single-draw assertions, to avoid
 inherent ~5%-level flakiness.
 
-**Frontend: 15 tests** (Vitest + jsdom + Testing Library) — component-level
-tests for `Legend` and `BottomDrawer` (the redesigned dashboard's stat-card +
-beeswarm + histogram panel, replacing the old `InspectPanel`), and `App`-level
+**Frontend: 17 tests** (Vitest + jsdom + Testing Library) — component-level
+tests for `Legend`, `BottomDrawer` (the redesigned dashboard's stat-card +
+beeswarm + histogram panel, replacing the old `InspectPanel`), and `MapPanel`
+(a regression test for §3.21's stale-overlay-layer bug), plus `App`-level
 tests that mock only `maplibre-gl` (needs real WebGL, unavailable in jsdom)
 and the network layer, then render the real component tree and exercise the
 actual Generate → submit job → poll status → load three overlays flow, tab
