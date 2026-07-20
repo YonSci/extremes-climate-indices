@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // for real) can't run here — mock it at the module level. This test is about
 // verifying App's actual generate -> poll -> load-overlays control flow wires
 // together correctly as real React code, not about rendering a real map (which
-// needs a real browser; see docs/operations.md for why that couldn't be run in
-// this sandboxed environment).
+// needs a real browser; see docs/operations.md §3.18 for the Playwright e2e suite
+// that does exercise a real map).
 vi.mock("maplibre-gl", () => {
   class FakeMap {
     on() {}
@@ -17,6 +17,7 @@ vi.mock("maplibre-gl", () => {
     }
     addControl() {}
     remove() {}
+    resize() {}
     isStyleLoaded() {
       return true;
     }
@@ -28,6 +29,9 @@ vi.mock("maplibre-gl", () => {
     }
     addSource() {}
     addLayer() {}
+    project() {
+      return { x: 0, y: 0 };
+    }
     getCenter() {
       return { lng: 0, lat: 0 };
     }
@@ -42,8 +46,19 @@ vi.mock("maplibre-gl", () => {
     }
     jumpTo() {}
   }
+  class FakeMarker {
+    setLngLat() {
+      return this;
+    }
+    addTo() {
+      return this;
+    }
+    remove() {
+      return this;
+    }
+  }
   class FakeNavigationControl {}
-  return { default: { Map: FakeMap, NavigationControl: FakeNavigationControl } };
+  return { default: { Map: FakeMap, Marker: FakeMarker, NavigationControl: FakeNavigationControl } };
 });
 
 vi.mock("./api", async () => {
@@ -110,12 +125,21 @@ describe("App", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the control panel and three map panels", async () => {
+  it("renders the top nav, toolbar, and three map panels", async () => {
     render(<App />);
-    expect(await screen.findByText("Forecast Controls")).toBeInTheDocument();
+    expect(await screen.findByText("Forecast Dashboard")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /generate maps/i })).toBeInTheDocument();
     expect(screen.getByText("Forecast")).toBeInTheDocument();
     expect(screen.getByText("Historical Climatology")).toBeInTheDocument();
     expect(screen.getByText("Departure from Normal")).toBeInTheDocument();
+  });
+
+  it("switching the top nav tab shows a placeholder for unbuilt sections", async () => {
+    render(<App />);
+    await screen.findByText("Forecast Dashboard");
+    await userEvent.click(screen.getByRole("button", { name: "Validation" }));
+    expect(screen.getByText("This section isn't built yet — coming in a future pass.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /generate maps/i })).not.toBeInTheDocument();
   });
 
   it("clicking Generate maps submits a job, polls it, and loads overlays for all three panels", async () => {
@@ -138,13 +162,36 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText(/2026-05-02 to 2026-05-15/)).toBeInTheDocument());
   });
 
-  it("loads a boundary overlay when an admin level is selected from the toolbar", async () => {
+  it("re-colorizes existing overlays with colorblind-safe colormaps when that display toggle flips", async () => {
     const { api } = await import("./api");
     render(<App />);
 
+    await userEvent.click(await screen.findByRole("button", { name: /generate maps/i }));
+    await waitFor(() => expect(api.getOverlay).toHaveBeenCalledTimes(3));
+    vi.mocked(api.getOverlay).mockClear();
+
+    await userEvent.click(screen.getByRole("button", { name: "Display" }));
+    await userEvent.click(screen.getByLabelText(/colorblind-safe palette/i));
+
+    await waitFor(() => expect(api.getOverlay).toHaveBeenCalledTimes(3));
+    expect(api.getOverlay).toHaveBeenCalledWith("geotiff/left.tif", "cividis", false);
+    expect(api.getOverlay).toHaveBeenCalledWith("geotiff/right.tif", "RdBu", true);
+  });
+
+  it("loads a boundary overlay when an admin level is selected from the Display menu", async () => {
+    const { api } = await import("./api");
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /display/i }));
     const select = await screen.findByLabelText(/admin boundary overlay/i);
     await userEvent.selectOptions(select, "admin1");
 
     await waitFor(() => expect(api.getBoundary).toHaveBeenCalledWith("ethiopia", "admin1"));
+  });
+
+  it("shows the bottom-drawer hint until a grid cell is inspected", async () => {
+    render(<App />);
+    await screen.findByText("Forecast Dashboard");
+    expect(screen.getByText("Click any map to inspect a grid cell")).toBeInTheDocument();
   });
 });

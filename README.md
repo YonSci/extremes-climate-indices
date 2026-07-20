@@ -25,7 +25,7 @@ Documentation:
 - **Statistical significance**: bootstrap/permutation skill-score significance, bootstrap forecast-departure significance, Benjamini-Hochberg FDR correction, skill-based confidence layer ([src/significance/](src/significance/))
 - NetCDF/GeoTIFF/CSV export with full provenance metadata, incl. bias-correction provenance ([src/utilities/export.py](src/utilities/export.py))
 - **FastAPI backend** wrapping every module above — reference/catalog endpoints, an async job queue for on-demand forecast calculation, a georeferenced GeoTIFF→PNG overlay endpoint for web maps, and verification/significance results ([src/api/](src/api/))
-- **React + Vite + TypeScript + MapLibre GL frontend** — three synchronized map panels, a control panel, click-to-inspect grid-cell distributions ([frontend/](frontend/); scoped v1, see docs/operations.md §2.6)
+- **React + Vite + TypeScript + MapLibre GL frontend** — interactive dashboard: top tab nav, a compact toolbar, three larger synchronized map panels (shared pan/zoom/crosshair, per-panel legends, an optional graticule), and a bottom drawer with stat cards + beeswarm/histogram charts on grid-cell click ([frontend/](frontend/); scoped v1, see docs/operations.md §2.6/§3.20)
 - Docker, GitHub Actions CI, and an APScheduler-based operational scheduling workflow ([Dockerfile](Dockerfile), [docker-compose.yml](docker-compose.yml), [.github/workflows/ci.yml](.github/workflows/ci.yml), [src/workflows/scheduler.py](src/workflows/scheduler.py)) — see [docs/deployment.md](docs/deployment.md) for verification status
 - CLI workflows: single-period, full-batch, verification, significance, and scheduler ([src/workflows/](src/workflows/))
 
@@ -49,7 +49,7 @@ cd frontend && npm install
 # Backend (153 tests)
 python -m pytest tests/ -v
 
-# Frontend (9 tests)
+# Frontend (15 tests)
 cd frontend && npm test
 ```
 
@@ -57,7 +57,7 @@ Unit + scientific-validation (synthetic, known-answer cases) plus integration
 tests that run the real pipeline — including the full FastAPI backend via
 `TestClient` — against the actual Ethiopia NetCDF/shapefile data.
 
-There's also a real-browser e2e suite (Playwright, 4 tests) that drives the
+There's also a real-browser e2e suite (Playwright, 8 tests) that drives the
 built app in a real Chromium tab against a live backend + the real data —
 not part of the fast default loop above since it needs two running servers.
 See [docs/operations.md §3.18](docs/operations.md#318-real-browser-playwright-verification-of-the-frontend)

@@ -7,8 +7,11 @@ import type maplibregl from "maplibre-gl";
  * `jumpTo` calls this triggers on the other maps from re-triggering their own
  * `move` handlers and creating an infinite loop.
  */
+export type CursorHandler = (lngLat: { lng: number; lat: number } | null, source: maplibregl.Map) => void;
+
 export function createMapSyncGroup() {
   const maps: maplibregl.Map[] = [];
+  const cursorHandlers = new Set<CursorHandler>();
   let syncing = false;
 
   function register(map: maplibregl.Map): () => void {
@@ -34,7 +37,17 @@ export function createMapSyncGroup() {
     };
   }
 
-  return { register };
+  /** Broadcasts a hover position (or `null` on mouse-leave) to every other registered panel's crosshair. */
+  function broadcastCursor(lngLat: { lng: number; lat: number } | null, source: maplibregl.Map): void {
+    for (const handler of cursorHandlers) handler(lngLat, source);
+  }
+
+  function onCursor(handler: CursorHandler): () => void {
+    cursorHandlers.add(handler);
+    return () => cursorHandlers.delete(handler);
+  }
+
+  return { register, broadcastCursor, onCursor };
 }
 
 export type MapSyncGroup = ReturnType<typeof createMapSyncGroup>;

@@ -8,6 +8,10 @@ const GRADIENTS: Record<string, string> = {
   YlOrBr: "linear-gradient(to right, #ffffe5, #fed98e, #fe9929, #cc4c02, #662506)",
   BrBG: "linear-gradient(to right, #543005, #bf812d, #f5f5f5, #35978f, #003c30)",
   RdYlGn: "linear-gradient(to right, #a50026, #f46d43, #ffffbf, #66bd63, #006837)",
+  // Colorblind-safe alternatives (the "Colorblind-safe palette" display toggle) — cividis is the
+  // reference colorblind-optimized sequential map; RdBu is ColorBrewer's colorblind-safe diverging pair.
+  cividis: "linear-gradient(to right, #00204d, #414d6b, #7c7b78, #bcae60, #ffea46)",
+  RdBu: "linear-gradient(to right, #67001f, #d6604d, #f7f7f7, #4393c3, #053061)",
 };
 
 export function Legend({ overlay, units }: { overlay: OverlayResponse; units: string }) {

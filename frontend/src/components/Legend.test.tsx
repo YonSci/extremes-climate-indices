@@ -25,4 +25,14 @@ describe("Legend", () => {
     const bar = container.querySelector(".legend-bar") as HTMLElement;
     expect(bar.style.background).toContain("linear-gradient");
   });
+
+  it("has a distinct gradient for each colorblind-safe colormap (cividis, RdBu)", () => {
+    const { container: seq } = render(<Legend overlay={{ ...overlay, cmap: "cividis" }} units="mm" />);
+    const { container: div } = render(<Legend overlay={{ ...overlay, cmap: "RdBu", diverging: true }} units="mm" />);
+    const seqBar = (seq.querySelector(".legend-bar") as HTMLElement).style.background;
+    const divBar = (div.querySelector(".legend-bar") as HTMLElement).style.background;
+    expect(seqBar).toContain("linear-gradient");
+    expect(divBar).toContain("linear-gradient");
+    expect(seqBar).not.toBe(divBar);
+  });
 });

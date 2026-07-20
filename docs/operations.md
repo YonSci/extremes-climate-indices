@@ -233,19 +233,45 @@ npm install
 npm run dev   # http://localhost:5173
 ```
 
-React + Vite + TypeScript + MapLibre GL. Three synchronized map panels
-(`src/components/MapPanel.tsx`, synced via `src/syncMaps.ts`'s pan/zoom/
-rotation propagation), a control panel driving `POST /forecast/calculate`,
-click-to-inspect calling `POST /timeseries`, an ensemble-statistic selector
-(mean/median, for the three indices where that choice actually applies —
-§3.17), and an admin-boundary overlay toolbar (admin0-3, drawn as a reference
-line layer on all three maps from `GET /regions/{region}/boundary`). **Still
-scoped, stated explicitly**: not literally every control spec section 11
-lists — basin/livelihood-zone overlays and a region picker aren't wired up
-(this project has one region, so a region picker wasn't a priority; no
-basin/livelihood-zone shapefiles exist on disk, and per this project's own
-policy of not offering options that aren't backed by real data, none are
-offered).
+React + Vite + TypeScript + MapLibre GL, redesigned as an interactive
+dashboard (from an original three-column control-panel/maps/inspect-panel
+layout): a top tab-nav (`TopNav.tsx` — one real "Forecasting" tab, five
+labeled placeholders for future sections, per an explicit scoping decision
+rather than half-building them), a compact two-row toolbar (`Toolbar.tsx`,
+replacing the old sidebar `ControlPanel`) driving `POST /forecast/calculate`,
+three larger synchronized map panels (`MapPanel.tsx`, card-styled with a
+title/subtitle header) sharing pan/zoom/rotation (`syncMaps.ts`) *and* a
+crosshair — hovering one map draws a "+" marker at the same geographic point
+on the other two (`syncMaps.ts`'s `broadcastCursor`/`onCursor`) — plus a
+per-panel legend, and a bottom drawer (`BottomDrawer.tsx`, replacing the old
+sidebar `InspectPanel`) that opens on any map click with stat cards and two
+upgraded charts: a real dodge-layout beeswarm of the 25 ensemble members and
+a binned histogram of the historical distribution (`Beeswarm.tsx` /
+`Histogram.tsx`, both sharing one domain so they're visually comparable, with
+a reference line at the ensemble median on both) — replacing the original
+flat dot-strip. Chart colors were run through the `dataviz` skill's CVD
+validator (`#2a78d6` blue / `#1baf7a` aqua — worst-pair ΔE 23.1, well past the
+8 target); the aqua's contrast WARN against the white surface is mitigated by
+full opacity plus a visible chart title (no legend box needed for either
+single-series chart per the skill's own rule).
+
+Three display tweaks live in a compact "Display" popover in the toolbar
+(`Toolbar.tsx`), each genuinely wired rather than cosmetic: **map height**
+(compact/comfortable/tall, resizes all three panels together and triggers a
+MapLibre `resize()`), **graticule** (toggles a generated lat/lon grid-line
+layer plus DOM-positioned edge labels, computed from the region's real
+bounds via `GET /regions`, not hard-coded), and **colorblind-safe palette**
+(swaps the sequential/diverging colormaps sent to `GET /overlay` — `YlGnBu`
+→`cividis`, `BrBG`→`RdBu`, both recognized colorblind-safe choices — and
+re-fetches already-rendered overlays immediately, no re-run needed). The
+admin-boundary overlay toggle (admin0-3, §3.17) moved into the same popover,
+since it's also a map-display concern rather than a forecast parameter.
+
+**Still scoped, stated explicitly**: not literally every control spec
+section 11 lists — basin/livelihood-zone overlays aren't wired up (no such
+shapefiles exist on disk, and per this project's own policy of not offering
+options that aren't backed by real data, none are offered), and the five
+placeholder nav tabs don't have real content yet.
 
 All six indices now export a GeoTIFF for every three-panel slot
 (`left_geotiff`/`middle_geotiff`/`right_geotiff` in `generate_products.py`'s
@@ -632,34 +658,43 @@ real browser (stated explicitly at the time rather than glossed over). On a
 later attempt in this same session, the Chromium download succeeded cleanly,
 so a real e2e suite was added and run for real:
 
-`frontend/playwright.config.ts` + `frontend/e2e/app.spec.ts` — four tests,
-run against a real `uvicorn api.main:app` (port 8123) and a real
-`vite preview` production build (port 4173), i.e. the actual built app, not
-the dev server, talking to the actual Ethiopia NetCDF/shapefile data:
+`frontend/playwright.config.ts` + `frontend/e2e/app.spec.ts` — eight tests
+(originally four; extended in §3.20's dashboard redesign), run against a real
+`uvicorn api.main:app` (port 8123) and a real `vite preview` production build
+(port 4173), i.e. the actual built app, not the dev server, talking to the
+actual Ethiopia NetCDF/shapefile data:
 
-1. The control panel populates from real `/indices`, `/forecast/periods`,
+1. The toolbar populates from real `/indices`, `/forecast/periods`,
    `/climatology/periods`, `/forecast/initializations` responses (6 real
    indices, a real default initialization date).
-2. Clicking "Generate maps" drives a real `POST /forecast/calculate` →
+2. Switching top-nav tabs shows the placeholder for unbuilt sections and
+   hides the toolbar; switching back to Forecasting restores it.
+3. Clicking "Generate maps" drives a real `POST /forecast/calculate` →
    background computation → poll loop → three real MapLibre GL WebGL
    canvases, each rendering a real georeferenced overlay image, each with a
    legend (i.e. no panel silently fell back to the "doesn't export per-panel
    GeoTIFFs yet" message — this exercises the §3.15 fix for real).
-3. Clicking a rendered map canvas triggers a real `POST /timeseries` and
-   renders the real grid-cell distribution in the inspect panel.
-4. Selecting an admin-boundary level fires a real
-   `GET /regions/ethiopia/boundary` request and receives real GeoJSON (15
-   admin1 features) — exercising the §3.17 addition for real.
+4. Clicking a rendered map canvas opens the real bottom drawer, triggers a
+   real `POST /timeseries`, and renders real stat cards plus both charts.
+5. Selecting an admin-boundary level (now in the Display popover) fires a
+   real `GET /regions/ethiopia/boundary` request and receives real GeoJSON
+   (15 admin1 features) — exercising the §3.17 addition for real.
+6. The graticule toggle draws real edge-label DOM elements on all three maps.
+7. The map-height tweak actually resizes all three map canvases together.
+8. The colorblind-safe toggle re-requests `/overlay` with `cmap=cividis` for
+   the already-rendered forecast panel, confirmed via the real network
+   response, not just a re-render.
 
-All four passed, run twice for stability (no flakiness observed). One test
-bug was caught and fixed along the way: an assertion on a `<select>`
-option's text (`getByText(/2026-05-01/)`) failed because Playwright correctly
-treats an unselected `<option>` as not "visible" — fixed to assert on the
-select's actual value via `getByLabel(/initialization date/i)`. A second,
-genuine race condition was also caught: asserting on the transient
-"Submitting job…" status text was flaky, since a fast real network round-trip
-can flip past it before the assertion's polling window opens — fixed by
-asserting only on the final "Done:" state, which is what actually matters.
+All eight passed, run twice for stability (no flakiness observed). Two test
+bugs were caught and fixed along the way, in the original four-test version:
+an assertion on a `<select>` option's text (`getByText(/2026-05-01/)`) failed
+because Playwright correctly treats an unselected `<option>` as not
+"visible" — fixed to assert on the select's actual value via
+`getByLabel(/initialization date/i)`. A genuine race condition was also
+caught: asserting on the transient "Submitting job…" status text was flaky,
+since a fast real network round-trip can flip past it before the assertion's
+polling window opens — fixed by asserting only on the final "Done:" state,
+which is what actually matters.
 
 **Running it**: not wired into `npm test` (that stays the fast default) or
 into CI (no browser binaries provisioned there yet, and it needs two live
@@ -713,6 +748,41 @@ local dry-run of CI's *commands* only proves the commands are spelled
 correctly — it can't prove what happens in an environment that genuinely
 differs from the one it ran in. The first real run on the real target
 environment is not optional verification.
+
+### 3.20 Interactive dashboard redesign
+
+The frontend's original layout (a fixed three-column grid — a `ControlPanel`
+sidebar, three map panels, an `InspectPanel` sidebar) was redesigned into the
+interactive-dashboard layout described in §2.6, against a reference design
+supplied as screenshots (a Claude design-tool canvas link that couldn't be
+fetched directly — only `claude.ai/code/artifact/*` URLs are, not
+`claude.ai/design/*`). New components: `TopNav.tsx`, `Toolbar.tsx`,
+`BottomDrawer.tsx`, `StatCard.tsx`, `Beeswarm.tsx`, `Histogram.tsx`,
+`TabPlaceholder.tsx`; `MapPanel.tsx` and `syncMaps.ts` were substantially
+extended (graticule, crosshair); `ControlPanel.tsx` and `InspectPanel.tsx`
+(plus its test file) were deleted outright rather than left as dead code
+once nothing imported them anymore.
+
+Scope decision made explicit before starting (the reference design showed
+six nav tabs but only "Forecasting" was actually designed): the other five
+render as real, clickable, honestly-labeled placeholders rather than either
+being silently dropped or having speculative content invented for them.
+
+The beeswarm's dodge-layout algorithm (sort by value, stack collisions into
+alternating rows above/below center, per-row minimum-spacing check) and the
+histogram's binning were written from scratch — the original was a flat,
+overlapping dot-strip. Chart colors were chosen from the `dataviz` skill's
+validated palette and run through its CVD validator rather than picked by
+eye (§2.6 has the numbers). The "colorblind-safe palette" tweak swaps the
+*map* colormaps (`cividis`/`RdBu`, server-side via the existing
+`GET /overlay?cmap=` parameter — no backend change needed); it's a distinct
+concern from the chart colors, which aren't user-toggleable since they were
+chosen to already pass the validator.
+
+All 15 Vitest component/integration tests and all 8 Playwright real-browser
+tests (§3.18) pass against the redesigned app, including three new
+tweak-specific e2e tests (map height, graticule, colorblind re-colorize) that
+didn't exist before this redesign.
 
 ---
 
@@ -884,11 +954,14 @@ a single random draw (bootstrap CI coverage, false-positive rate) are written
 as multi-trial rate checks rather than single-draw assertions, to avoid
 inherent ~5%-level flakiness.
 
-**Frontend: 9 tests** (Vitest + jsdom + Testing Library) — component-level
-tests for `Legend` and `InspectPanel`, and an `App`-level test that mocks only
-`maplibre-gl` (needs real WebGL, unavailable in jsdom) and the network layer,
-then renders the real component tree and exercises the actual Generate →
-submit job → poll status → load three overlays control flow end to end. See
-operations.md §3.14 for a real mocking bug this caught (a "mocked" module
-that still made a genuine network call), and §2.6 / §4 for why a full
-real-browser check (Playwright) wasn't possible in this environment.
+**Frontend: 15 tests** (Vitest + jsdom + Testing Library) — component-level
+tests for `Legend` and `BottomDrawer` (the redesigned dashboard's stat-card +
+beeswarm + histogram panel, replacing the old `InspectPanel`), and `App`-level
+tests that mock only `maplibre-gl` (needs real WebGL, unavailable in jsdom)
+and the network layer, then render the real component tree and exercise the
+actual Generate → submit job → poll status → load three overlays flow, tab
+switching, the colorblind-safe re-colorize path, and the admin-boundary
+Display-menu control, end to end. See operations.md §3.14 for a real mocking
+bug this caught (a "mocked" module that still made a genuine network call).
+Real-browser coverage (8 Playwright tests, including the graticule and map-
+height tweaks) is documented in §3.18.

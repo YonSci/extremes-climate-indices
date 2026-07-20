@@ -122,6 +122,21 @@ export interface BoundaryGeoJSON {
   }>;
 }
 
+export type MapHeightPreset = "compact" | "comfortable" | "tall";
+
+export const MAP_HEIGHT_PX: Record<MapHeightPreset, number> = {
+  compact: 320,
+  comfortable: 440,
+  tall: 580,
+};
+
+export interface DisplaySettings {
+  mapHeight: MapHeightPreset;
+  graticule: boolean;
+  colorblindSafe: boolean;
+  boundaryLevel: string; // "none" | "admin0" | "admin1" | "admin2" | "admin3"
+}
+
 export interface RequestSelection {
   region: string;
   forecastDataset: string;
