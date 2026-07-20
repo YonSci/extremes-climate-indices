@@ -1,0 +1,59 @@
+name: CI
+
+# Still not exercised against a real GitHub Actions runner in this development
+# environment — there's no git repository/GitHub remote here to push to (see
+# docs/operations.md). But every step below (Python 3.11+/pytest, Node 22/npm ci/
+# npm run build, npm test) has been dry-run manually against this exact repo state
+# and passes: 150 backend tests, 8 frontend tests, and a clean production build.
+# The one thing that still can't be checked locally is the `apt-get install`
+# GDAL/GEOS/PROJ step, since this dev box isn't Ubuntu — verify that on first push.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install GDAL/GEOS/PROJ system libraries
+        run: sudo apt-get update && sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+      - name: Install Python dependencies
+        run: pip install -e .[dev]
+
+      - name: Run test suite
+        run: python -m pytest tests/ -v
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Type-check + production build
+        run: npm run build

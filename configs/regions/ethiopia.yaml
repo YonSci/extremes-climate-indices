@@ -1,0 +1,181 @@
+# Ethiopia deployment config.
+#
+# Values here reflect what was actually found by inspecting the three NetCDF files
+# under data/ (see docs/architecture.md, section 2) rather than the generic periods
+# in the original brief. Anything marked verifiable: false is left in the schema for
+# forward-compatibility (e.g. once a DJF-covering dataset is added) but must not be
+# offered as a working option in the UI/API until real data backs it.
+
+region:
+  name: ethiopia
+  lat_min: 3.125
+  lat_max: 14.875
+  lon_min: 33.125
+  lon_max: 47.875
+  resolution_deg: 0.25
+  crs: "EPSG:4326"
+  boundary_shapefile: data/boundaries/eth_shapefile/eth_admin0.shp   # national outline, used to mask grid to land
+  admin_boundaries:
+    admin1: data/boundaries/eth_shapefile/eth_admin1.shp
+    admin2: data/boundaries/eth_shapefile/eth_admin2.shp
+    admin3: data/boundaries/eth_shapefile/eth_admin3.shp
+  land_mask_path: null
+
+datasets:
+  - name: chirps_obs
+    kind: observation
+    path: data/chrips_historical/et_chirps_pr_r25_1993_2025.nc
+    expected_units: mm/day
+    bias_correction_method: none
+    dims:
+      time: time
+      lat: lat
+      lon: lon
+      realization: null
+      variable: precip
+
+  - name: seas5_hindcast
+    kind: forecast_hindcast
+    path: data/bias-corrected/corrected_1993_2025.nc
+    expected_units: mm/day
+    bias_correction_method: "QDM (applied upstream by data provider, prior to ingestion)"
+    dims:
+      time: time
+      lat: lat
+      lon: lon
+      realization: realization
+      variable: pr
+
+  - name: seas5_operational_2026
+    kind: forecast_operational
+    path: data/bias-corrected/corrected_2026.nc
+    bias_correction_method: "QDM (applied upstream by data provider, prior to ingestion)"
+    expected_units: mm/day
+    dims:
+      time: time
+      lat: lat
+      lon: lon
+      realization: realization
+      variable: pr
+
+climatology:
+  default_observational: obs_1993_2025
+  default_model_hindcast: model_hindcast_1993_2016
+  aggregation_statistic: mean
+  periods:
+    - label: obs_1981_2010
+      start_year: 1981
+      end_year: 2010
+      kind: observational
+      verifiable: false   # CHIRPS extract on disk only starts 1993
+
+    - label: obs_1991_2020
+      start_year: 1991
+      end_year: 2020
+      kind: observational
+      verifiable: false   # 1991-1992 not present in the CHIRPS extract on disk
+
+    - label: obs_1993_2025
+      start_year: 1993
+      end_year: 2025
+      kind: observational
+      verifiable: true    # full coverage of the CHIRPS extract on disk
+
+    - label: model_hindcast_1993_2016
+      start_year: 1993
+      end_year: 2016
+      kind: model_hindcast
+      verifiable: true    # 25-member SEAS5 hindcast; realizations 25-50 are NaN here by design
+
+    - label: model_operational_2017_2025
+      start_year: 2017
+      end_year: 2025
+      kind: model_hindcast
+      verifiable: true    # 51-member operational SEAS5, usable as an additional/extended hindcast pool
+
+periods:
+  sub_seasonal:
+    - {label: week1,    start_day: 1,  end_day: 7}
+    - {label: week2,    start_day: 8,  end_day: 14}
+    - {label: week3,    start_day: 15, end_day: 21}
+    - {label: week4,    start_day: 22, end_day: 28}
+    - {label: week1_2,  start_day: 1,  end_day: 14}
+    - {label: week1_3,  start_day: 1,  end_day: 21}
+    - {label: week2_3,  start_day: 8,  end_day: 21}
+    - {label: week2_4,  start_day: 8,  end_day: 28}
+    - {label: week3_4,  start_day: 15, end_day: 28}
+
+  seasonal:
+    - label: JJAS
+      months: [6, 7, 8, 9]
+      verifiable: true
+    - label: MJJASO
+      months: [5, 6, 7, 8, 9, 10]
+      verifiable: true    # the native full window of the on-disk forecast files
+    - label: June
+      months: [6]
+      verifiable: true
+    - label: July
+      months: [7]
+      verifiable: true
+    - label: August
+      months: [8]
+      verifiable: true
+    - label: September
+      months: [9]
+      verifiable: true
+    - label: MAM
+      months: [3, 4, 5]
+      verifiable: false
+      verifiable_reason: "Forecast/hindcast files start 1-2 May; March-April lead times don't exist on disk."
+    - label: FMAM
+      months: [2, 3, 4, 5]
+      verifiable: false
+      verifiable_reason: "Feb-Apr lead times don't exist on disk."
+    - label: OND
+      months: [10, 11, 12]
+      verifiable: false
+      verifiable_reason: "Nov-Dec lead times don't exist on disk (files end 31 Oct)."
+    - label: ONDJ
+      months: [10, 11, 12, 1]
+      verifiable: false
+      verifiable_reason: "Nov-Jan lead times don't exist on disk."
+    - label: DJF
+      months: [12, 1, 2]
+      verifiable: false
+      verifiable_reason: "Dec-Feb entirely outside the on-disk MJJASO forecast window."
+
+indices:
+  no_rain_thresholds_mm: [0.1, 0.5, 1.0, 2.0]
+  default_no_rain_threshold_mm: 1.0
+  dry_spell_lengths_days: [5, 7, 9]
+  default_dry_spell_length_days: 7
+  percentile_category_edges: [10, 20, 33, 67, 80, 90]
+  min_climatological_denominator_mm: 1.0
+  ensemble_quantiles: [0.10, 0.25, 0.50, 0.75, 0.90]
+  spi_short_duration_days: [7, 14]
+  spi_monthly_accumulations: [1, 2, 3, 4, 5, 6]
+  dry_spell_boundary_mode: seamless
+
+verification:
+  ensemble_size_for_verification: 25   # fixed across all hindcast years; see docs/operations.md
+  min_hindcast_years: 15
+  significance_level: 0.05
+  fdr_method: benjamini_hochberg
+  n_bootstrap: 1000
+  bootstrap_seed: 42
+  reliability_n_bins: 10
+  low_skill_bss_threshold: 0.0
+  low_skill_auc_threshold: 0.55
+  events:
+    - {label: below_p20,   index: rainfall_percentile, comparison: below,    threshold: 20,   description: "Rainfall below the 20th percentile"}
+    - {label: above_p80,   index: rainfall_percentile, comparison: at_least, threshold: 80,   description: "Rainfall at/above the 80th percentile"}
+    - {label: spi_le_-1.0, index: spi,                 comparison: below,    threshold: -1.0, description: "SPI/standardized anomaly <= -1.0"}
+    - {label: spi_le_-1.5, index: spi,                 comparison: below,    threshold: -1.5, description: "SPI/standardized anomaly <= -1.5"}
+    - {label: cdd_ge_5,    index: cdd,                 comparison: at_least, threshold: 5,    description: "Dry spell (CDD) >= 5 days"}
+    - {label: cdd_ge_7,    index: cdd,                 comparison: at_least, threshold: 7,    description: "Dry spell (CDD) >= 7 days"}
+    - {label: cdd_ge_9,    index: cdd,                 comparison: at_least, threshold: 9,    description: "Dry spell (CDD) >= 9 days"}
+  periods_to_verify:
+    - {period_type: sub_seasonal, period_label: week1_2}
+    - {period_type: sub_seasonal, period_label: week3_4}
+    - {period_type: seasonal,     period_label: JJAS}

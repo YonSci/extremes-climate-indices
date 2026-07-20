@@ -1,0 +1,33 @@
+name: extreme-forecast-tool
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - xarray
+  - numpy
+  - pandas
+  - scipy
+  - netcdf4
+  - cfgrib
+  - rioxarray
+  - rasterio
+  - geopandas
+  - shapely
+  - pydantic>=2
+  - pyyaml
+  - matplotlib
+  - xclim
+  - dask
+  - fastapi
+  - uvicorn
+  - xesmf
+  - xskillscore
+  - statsmodels
+  - scikit-learn
+  - apscheduler
+  - pillow
+  - pytest
+  - pytest-cov
+  - httpx
+  - ruff
+  - pip

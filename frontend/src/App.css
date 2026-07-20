@@ -1,0 +1,252 @@
+:root {
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 320px;
+  grid-template-rows: 100vh;
+  gap: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* --- Control panel --- */
+
+.control-panel {
+  padding: 16px;
+  overflow-y: auto;
+  border-right: 1px solid #3333;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-panel h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+}
+
+.control-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.control-panel select,
+.control-panel input {
+  font-size: 0.9rem;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #8888;
+}
+
+.control-panel button {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  background: #225ea8;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.control-panel button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  opacity: 0.75;
+  margin: 0;
+}
+
+.error-banner {
+  background: #a5002622;
+  border: 1px solid #a50026;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+/* --- Maps --- */
+
+.maps-area {
+  overflow: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 8px;
+}
+
+.maps-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.maps-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.maps-toolbar select {
+  font-size: 0.85rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #8888;
+}
+
+.maps-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.map-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.map-panel {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #3333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  background: #2225;
+}
+
+.map-panel-canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.map-panel-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #000a;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.legend {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+}
+
+.legend-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+/* --- Inspect panel --- */
+
+.inspect-panel {
+  padding: 16px;
+  overflow-y: auto;
+  border-left: 1px solid #3333;
+}
+
+.inspect-panel-empty {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.inspect-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inspect-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 12px;
+  font-size: 0.85rem;
+  margin: 12px 0;
+}
+
+.stat-grid dt {
+  opacity: 0.7;
+}
+
+.stat-grid dd {
+  margin: 0;
+  font-weight: 600;
+  justify-self: end;
+}
+
+.stat-grid dd.negative {
+  color: #a50026;
+}
+
+.stat-grid dd.positive {
+  color: #1a7a3c;
+}
+
+.dot-strip {
+  display: block;
+  margin: 4px 0 10px 0;
+}
+
+.inspect-loading-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: #225ea8;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}

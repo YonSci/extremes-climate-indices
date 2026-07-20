@@ -1,0 +1,48 @@
+# NOT built/run in this development environment (no Docker CLI available there).
+# Written to the standard compose v2 shape; verify with `docker compose up --build`
+# before relying on it. See docs/deployment.md for the full walkthrough.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8123:8000"
+    volumes:
+      - ./data:/app/data:ro          # real NetCDF/shapefile inputs — see README's "Data expected on disk"
+      - ./configs:/app/configs:ro
+      - outputs:/app/outputs         # generated maps/exports/reports, shared with the scheduler
+    environment:
+      - EXTREMES_OUTPUT_DIR=/app/outputs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8123
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "workflows.scheduler"]
+    volumes:
+      - ./data:/app/data:ro
+      - ./configs:/app/configs:ro
+      - outputs:/app/outputs
+    environment:
+      - EXTREMES_OUTPUT_DIR=/app/outputs
+    profiles: ["scheduler"]  # opt-in: `docker compose --profile scheduler up`
+
+volumes:
+  outputs:
