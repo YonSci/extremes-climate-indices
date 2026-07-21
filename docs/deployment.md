@@ -38,6 +38,14 @@ npm install
 npm run dev   # http://localhost:5173, talking to the API at http://127.0.0.1:8123
 ```
 
+`PYTHONPATH=src <command>` is bash/zsh syntax — on Windows, set it as a
+separate command first: Command Prompt `set PYTHONPATH=src`, PowerShell
+`$env:PYTHONPATH = "src"` (see operations.md §3.22). The two-step form is
+required either way — `pip install -e .[dev]` does not put `src` on the path
+by itself, so both terminals need their own working backend/frontend
+process, and the API being unreachable (nothing listening on 8123) is what
+produces "Could not load options: TypeError: Failed to fetch" in the toolbar.
+
 The frontend's API base URL is read from `VITE_API_BASE_URL` at build time
 (`frontend/src/api.ts`), defaulting to `http://127.0.0.1:8123`. Set it in
 `frontend/.env.local` for a different local port.

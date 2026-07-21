@@ -48,8 +48,14 @@ NetCDF file 14 times.
 ## 2. CLI reference
 
 Both scripts are run as modules (`python -m workflows.<name>`) with
-`PYTHONPATH=src` set (or after `pip install -e .`, which puts `src` on the
-path automatically via the package layout).
+`PYTHONPATH=src` set. Note this project has no `[build-system]`/src-layout
+packaging config, so `pip install -e .` alone does **not** put `src` on the
+path — `PYTHONPATH` (or pytest's own `pythonpath = ["src"]` in
+`pyproject.toml`, which is why the test suite doesn't need this) is required.
+On Windows this is shell-syntax-dependent: `PYTHONPATH=src <command>` is
+bash/zsh-only; Command Prompt needs `set PYTHONPATH=src` first, PowerShell
+needs `$env:PYTHONPATH = "src"` first, each as a separate command (see
+[operations.md §3.22](#322-pythonpathsrc-is-bashzsh-only-syntax-windows-usershit-this-live) for a live example of this tripping someone up).
 
 ### 2.1 `workflows.run_phase1` — single period, full product set
 
@@ -198,6 +204,10 @@ already-small forecast period, not the multi-GB hindcast file).
 ```bash
 PYTHONPATH=src python -m uvicorn api.main:app --reload --port 8123
 ```
+
+`PYTHONPATH=src <command>` is bash/zsh syntax. On Windows, Command Prompt
+needs `set PYTHONPATH=src` first (separate command), PowerShell needs
+`$env:PYTHONPATH = "src"` first (also separate) — see §3.22.
 
 Every endpoint is a thin wrapper around the modules above — no logic is
 reimplemented in the API layer. Full endpoint list and request/response
@@ -812,6 +822,38 @@ result is independent, and a partial-failure status message reports how many
 of the 3 panels failed. Verified live: generate with `rainfall_total`, switch
 to `seasonal`/`June`/`spi`, regenerate — the maps now show real, different
 SPI data (confirmed via screenshot) instead of the stale rainfall totals.
+
+### 3.22 `PYTHONPATH=src` is bash/zsh-only syntax — Windows users hit this live
+
+**Symptom** (user-reported, with a screenshot): running
+`PYTHONPATH=src python -m uvicorn api.main:app --reload --port 8123` in a
+Windows Command Prompt failed immediately: `'PYTHONPATH' is not recognized as
+an internal or external command`. Separately, the frontend showed "Could not
+load options: TypeError: Failed to fetch" with every toolbar dropdown empty —
+the direct consequence of the backend never having started, which live
+diagnosis confirmed: nothing was listening on port 8123, only the frontend's
+own dev server (port 5173) was up.
+
+**Cause**: `VAR=value command` inline-environment-variable syntax is
+bash/zsh-specific. It's a silent no-op in PowerShell (parsed as an odd
+command, not an assignment) and an outright error in Command Prompt, which is
+exactly what the screenshot showed. This project's docs only ever showed the
+bash form. Separately, the docs claimed `pip install -e .` was an alternative
+that "puts `src` on the path automatically via the package layout" — checked
+live and confirmed **false**: this project has no `[build-system]` table or
+src-layout packaging config, so `python -c "import api.main"` fails with
+`ModuleNotFoundError` even after `pip install -e .[dev]`. Only pytest's own
+`pythonpath = ["src"]` setting (`pyproject.toml`) sidesteps this — for
+anything run directly (`uvicorn`, the CLI workflows), `PYTHONPATH` really is
+required, correctly set for the shell in use.
+
+**Fix**: README.md, deployment.md, and this section now give the Command
+Prompt (`set PYTHONPATH=src` then run the command separately) and PowerShell
+(`$env:PYTHONPATH = "src"` then run the command separately) forms alongside
+the bash one, and the false `pip install -e .` claim was removed rather than
+left to mislead the next person. No code changed — this was a docs-accuracy
+gap surfaced by watching a real user actually hit it, not a bug in the
+application itself.
 
 ---
 

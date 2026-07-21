@@ -106,7 +106,11 @@ python -m workflows.run_significance \
     --climatology-period obs_1993_2025 --output-dir outputs
 ```
 
-(Set `PYTHONPATH=src` first, or run via `pip install -e .` + package layout.)
+Set `PYTHONPATH=src` first (bash/zsh: `PYTHONPATH=src <command>`; Command
+Prompt: `set PYTHONPATH=src` then run the command on its own line;
+PowerShell: `$env:PYTHONPATH = "src"` then run the command on its own line —
+`pip install -e .[dev]` does *not* put `src` on the path on its own, since
+this project has no `[build-system]`/src-layout packaging config).
 Full flag reference for all commands: [docs/operations.md §2](docs/operations.md#2-cli-reference).
 
 Outputs land under `outputs/{maps,netcdf,geotiff,csv,reports,verification,significance}/`,
@@ -119,6 +123,10 @@ PYTHONPATH=src python -m uvicorn api.main:app --reload --port 8123   # http://12
 
 cd frontend && npm run dev                                            # http://localhost:5173
 ```
+
+On Windows, `PYTHONPATH=src <command>` is bash/zsh-only syntax. In Command
+Prompt: `set PYTHONPATH=src` then run the uvicorn command separately. In
+PowerShell: `$env:PYTHONPATH = "src"` then run it separately.
 
 See [docs/operations.md §2.5-2.6](docs/operations.md#25-apimain--fastapi-backend-phase-6)
 for the endpoint reference and frontend scope, and [docs/deployment.md](docs/deployment.md)
